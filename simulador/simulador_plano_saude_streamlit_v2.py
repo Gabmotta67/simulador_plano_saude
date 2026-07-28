@@ -1,31 +1,59 @@
+import pandas as pd
 import streamlit as st
 
-# ---------------------------------------------------------------------------
-# BASE DE DADOS
-# ---------------------------------------------------------------------------
-DADOS = {
-    "FORTALEZA": {
-        "NOSSO PLANO": {
-            "AMBULATORIAL": {
-                "COM COPART": {
-                    "S/ACOM": [
-                        ("00 a 18 anos", 122.75),
-                        ("19 a 23 anos", 137.48),
-                        ("24 a 28 anos", 153.98),
-                        ("29 a 33 anos", 177.08),
-                        ("34 a 38 anos", 203.64),
-                        ("39 a 43 anos", 242.33),
-                        ("44 a 48 anos", 302.91),
-                        ("49 a 53 anos", 388.54),
-                        ("54 a 58 anos", 643.69),
-                        ("59 anos ou mais", 720.93),
-                    ]
-                }
-            }
-        }
-    }
-}
 
+@st.cache_data
+def carregar_dados():
+    # Lê o CSV salvo localmente no repositório
+    # Usa encoding 'latin-1' ou 'utf-8' e sep ';' comum em CSVs brasileiros
+    try:
+        df = pd.read_csv(
+            "TABELA_PRICING_ATUALIZADA_20260122.csv",
+            sep=";",
+            encoding="latin-1",
+        )
+    except Exception:
+        df = pd.read_csv("TABELA_PRICING_ATUALIZADA_20260122.csv", sep=",")
+
+    df.columns = df.columns.str.strip()
+
+    if "DATA_DE_VIGENCIA" in df.columns:
+        df["DATA_DE_VIGENCIA"] = pd.to_datetime(
+            df["DATA_DE_VIGENCIA"], errors="coerce"
+        )
+        data_mais_recente = df["DATA_DE_VIGENCIA"].max()
+        df = df[df["DATA_DE_VIGENCIA"] == data_mais_recente]
+
+    dados = {}
+
+    for _, row in df.iterrows():
+        cidade = str(row["FILIAL"]).strip()
+        tipo = str(row["TIPO_PLANO"]).strip()
+        plano = str(row["PLANO"]).strip()
+        seg = str(row["SEGMENTACAO"]).strip()
+        acom = str(row["ACOMODACAO"]).strip()
+        faixa = str(row["FAIXA_ETARIA"]).strip()
+        valor = float(
+            str(row["VALOR_PRODUTO"]).replace(".", "").replace(",", ".")
+        )
+
+        if cidade not in dados:
+            dados[cidade] = {}
+        if plano not in dados[cidade]:
+            dados[cidade][plano] = {}
+        if seg not in dados[cidade][plano]:
+            dados[cidade][plano][seg] = {}
+        if tipo not in dados[cidade][plano][seg]:
+            dados[cidade][plano][seg][tipo] = {}
+        if acom not in dados[cidade][plano][seg][tipo]:
+            dados[cidade][plano][seg][tipo][acom] = []
+
+        dados[cidade][plano][seg][tipo][acom].append((faixa, valor))
+
+    return dados
+
+
+DADOS = carregar_dados()
 CIDADES = list(DADOS.keys())
 
 
@@ -66,7 +94,7 @@ st.set_page_config(
 CSS = """
 <style>
     .stApp {
-        background-color: #0b1530;
+        background-color: #1539AA;
     }
 
     .titulo-app {
